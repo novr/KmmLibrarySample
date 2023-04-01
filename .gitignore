@@ -8,3 +8,12 @@ captures
 .cxx
 local.properties
 xcuserdata
+
+.DS_Store
+/.build
+/Packages
+/*.xcodeproj
+DerivedData/
+.swiftpm/config/registries.json
+.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+.netrc
