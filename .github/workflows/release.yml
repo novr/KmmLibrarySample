@@ -8,12 +8,13 @@ on:
 jobs:
   build:
     runs-on: macos-latest
-
+    outputs:
+      checksum: ${{ steps.checksum.outputs.checksum }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Setup Java JDK
-        uses: actions/setup-java@v2.1.0
+        uses: actions/setup-java@v3
         with:
           distribution: 'adopt'
           java-version: '11'
@@ -24,10 +25,23 @@ jobs:
           cd shared/build/XCFrameworks/release/
           zip -r shared.xcframework.zip shared.xcframework
           mv shared.xcframework.zip ${{ github.workspace }}
+      - id: checksum
+        run: |
+          checksum=`swift package compute-checksum shared.xcframework.zip`
+          echo "checksum=${checksum}" >> $GITHUB_OUTPUT
       - uses: actions/upload-artifact@v3
         with:
           name: xcframework
           path: ./shared.xcframework.zip
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    outputs:
+      asset_url: ${{ steps.asset_url.outputs.asset_url }}
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: xcframework
       - name: Create release
         id: create_release
         uses: actions/create-release@v1
@@ -35,11 +49,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          release_name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
       - name: Upload Release Asset
-        id: upload-release-asset 
+        id: upload-release-asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -48,3 +62,21 @@ jobs:
           asset_path: ./shared.xcframework.zip
           asset_name: shared.xcframework.zip
           asset_content_type: application/zip
+      - id: asset_url
+        run: |
+          echo "asset_url=${{ steps.upload-release-asset.outputs.url }}" >> $GITHUB_OUTPUT
+  dispatch:
+    needs:
+      - build
+      - release
+    runs-on: ubuntu-latest
+    steps:
+        - name: dispatch
+          run: |
+            curl -L \
+              -X POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${{ secrets.PERSONAL_GITHUB_TOKEN }}"\
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              https://api.github.com/repos/novr/KmmLibrarySamplePackage/dispatches \
+              -d '{"event_type":"on-release","client_payload":{"asset_url":${{ needs.release.outputs.asset_url }}, "checksum":${{ needs.build.outputs.checksum }}, "ref_name":${{ github.ref_name }}}}'
