@@ -1,0 +1,50 @@
+name: iOS starter workflow
+
+on:
+  push:
+    tags: 
+      - "[0-9].[0-9]+.[0-9]+"
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup Java JDK
+        uses: actions/setup-java@v2.1.0
+        with:
+          distribution: 'adopt'
+          java-version: '11'
+      - name: Build
+        run: ./gradlew assembleXCFramework
+      - name: zipped
+        run: |
+          cd shared/build/XCFrameworks/release/
+          zip -r shared.xcframework.zip shared.xcframework
+          mv shared.xcframework.zip ${{ github.workspace }}
+      - uses: actions/upload-artifact@v3
+        with:
+          name: xcframework
+          path: ./shared.xcframework.zip
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+      - name: Upload Release Asset
+        id: upload-release-asset 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./shared.xcframework.zip
+          asset_name: shared.xcframework.zip
+          asset_content_type: application/zip
