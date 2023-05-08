@@ -86,4 +86,4 @@ jobs:
               -H "Authorization: Bearer ${{ secrets.PERSONAL_GITHUB_TOKEN }}"\
               -H "X-GitHub-Api-Version: 2022-11-28" \
               https://api.github.com/repos/novr/KmmLibrarySamplePackage/dispatches \
-              -d '{"event_type": "on-release", "client_payload": {"asset_url": "${{ needs.release.outputs.asset_url }}", "checksum": "${{ needs.build.outputs.checksum }}", "ref_name": "${{ github.ref_name }}"}}'
+              -d '{"event_type": "on-release", "client_payload": {"asset_url": ${{ needs.release.outputs.asset_url }}, "checksum": "${{ needs.build.outputs.checksum }}", "ref_name": "${{ github.ref_name }}"}}'
