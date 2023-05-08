@@ -25,7 +25,8 @@ jobs:
           cd shared/build/XCFrameworks/release/
           zip -r shared.xcframework.zip shared.xcframework
           mv shared.xcframework.zip ${{ github.workspace }}
-      - id: checksum
+      - name: checksum
+        id: checksum
         run: |
           checksum=`swift package compute-checksum shared.xcframework.zip`
           echo "checksum=${checksum}" >> $GITHUB_OUTPUT
@@ -64,7 +65,11 @@ jobs:
           asset_content_type: application/zip
       - id: asset_url
         run: |
-          echo "asset_url=${{ steps.upload-release-asset.outputs.url }}" >> $GITHUB_OUTPUT
+          asset_url=`gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/${{ github.repository }}/releases/tags/${{ github.ref_name }} | jq '.assets[] | select(.name == "shared.xcframework.zip") | .url'`
+          echo "asset_url=${asset_url}" >> $GITHUB_OUTPUT
   dispatch:
     needs:
       - build
@@ -79,4 +84,4 @@ jobs:
               -H "Authorization: Bearer ${{ secrets.PERSONAL_GITHUB_TOKEN }}"\
               -H "X-GitHub-Api-Version: 2022-11-28" \
               https://api.github.com/repos/novr/KmmLibrarySamplePackage/dispatches \
-              -d '{"event_type":"on-release","client_payload":{"asset_url":${{ needs.release.outputs.asset_url }}, "checksum":${{ needs.build.outputs.checksum }}, "ref_name":${{ github.ref_name }}}}'
+              -d '{"event_type": "on-release", "client_payload": {"asset_url": "${{ needs.release.outputs.asset_url }}", "checksum": "${{ needs.build.outputs.checksum }}", "ref_name": "${{ github.ref_name }}"}}'
